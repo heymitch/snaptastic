@@ -6,7 +6,7 @@
 TEMPLATE_NAME="trd-pro"
 TEMPLATE_DESC="TRD Pro heritage stripes. Red, orange, yellow."
 BG_TYPE="solid"
-BG_COLOR="srgb(32,32,32)"
+BG_COLOR="srgb(68,68,72)"
 PADDING=60
 CORNER_RADIUS=10
 SHADOW_BLUR=22
@@ -37,7 +37,7 @@ custom_background() {
     local y_t=22
     local y_y=$((o_y + o_t + 10))
 
-    magick -size "${out_w}x${out_h}" "xc:srgb(32,32,32)" -alpha off \
+    magick -size "${out_w}x${out_h}" "xc:srgb(68,68,72)" -alpha off \
         -fill "${trd_red}" \
         -draw "polygon 0,${r_y} ${bend_x},${r_y} $((out_w)),$((r_y - (out_w - bend_x))) $((out_w)),$((r_y - (out_w - bend_x) - r_t)) $((bend_x)),$((r_y - r_t)) 0,$((r_y - r_t))" \
         \
