@@ -1,0 +1,406 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# snap-pretty — CLI screenshot beautifier
+# Takes screenshots, makes them pretty. That's it.
+
+VERSION="1.0.0"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_DIR="${HOME}/.snap-pretty"
+CONFIG_FILE="${CONFIG_DIR}/config"
+USER_TEMPLATES_DIR="${CONFIG_DIR}/templates"
+BUNDLED_TEMPLATES_DIR="${SCRIPT_DIR}/templates"
+
+# ─── Defaults ───────────────────────────────────────────────
+WATCH_DIR="${HOME}/Desktop"
+TEMPLATE="clean-white"
+OUTPUT_SUFFIX="-pretty"
+POLL_INTERVAL=1
+
+# ─── Load user config if exists ─────────────────────────────
+if [[ -f "$CONFIG_FILE" ]]; then
+    # shellcheck source=/dev/null
+    source "$CONFIG_FILE"
+fi
+
+# ─── Template variables (set by template files) ─────────────
+TEMPLATE_NAME=""
+TEMPLATE_DESC=""
+BG_TYPE="solid"
+BG_COLOR="srgb(255,255,255)"
+BG_GRADIENT_TOP=""
+BG_GRADIENT_BOT=""
+PADDING=60
+CORNER_RADIUS=12
+SHADOW_BLUR=20
+SHADOW_OFFSET=6
+SHADOW_COLOR="rgba(0,0,0,0.15)"
+
+# ─── Functions ───────────────────────────────────────────────
+
+usage() {
+    cat <<'USAGE'
+snap-pretty — screenshot beautifier
+
+Usage:
+  snap-pretty <file.png>                     One-shot: beautify a single file
+  snap-pretty                                Watch mode: auto-beautify new screenshots
+  snap-pretty --template gradient-dark <f>   Use a specific template
+  snap-pretty --list-templates               Show available templates
+  snap-pretty --version                      Print version
+  snap-pretty --help                         This message
+
+Options:
+  --template <name>    Template to apply (default: clean-white)
+  --watch-dir <path>   Folder to watch (default: ~/Desktop)
+  --output-dir <path>  Output folder (default: same as input)
+  --suffix <str>       Output suffix (default: -pretty)
+  --list-templates     List all available templates
+  --version            Print version
+
+Config: ~/.snap-pretty/config
+Templates: ~/.snap-pretty/templates/ (user) or bundled in repo
+USAGE
+}
+
+log() {
+    echo "[snap-pretty] $*"
+}
+
+err() {
+    echo "[snap-pretty] ERROR: $*" >&2
+}
+
+resolve_font() {
+    # Get an absolute path to a sans-serif font
+    if command -v fc-match &>/dev/null; then
+        fc-match --format='%{file}' "sans-serif" 2>/dev/null || echo ""
+    else
+        # Fallback for macOS without fontconfig
+        local candidates=(
+            "/System/Library/Fonts/Helvetica.ttc"
+            "/System/Library/Fonts/SFNSText.ttf"
+            "/System/Library/Fonts/SFNS.ttf"
+            "/Library/Fonts/Arial.ttf"
+        )
+        for f in "${candidates[@]}"; do
+            if [[ -f "$f" ]]; then
+                echo "$f"
+                return
+            fi
+        done
+        echo ""
+    fi
+}
+
+load_template() {
+    local name="$1"
+    local template_file=""
+
+    # Check user templates first, then bundled
+    if [[ -f "${USER_TEMPLATES_DIR}/${name}.sh" ]]; then
+        template_file="${USER_TEMPLATES_DIR}/${name}.sh"
+    elif [[ -f "${BUNDLED_TEMPLATES_DIR}/${name}.sh" ]]; then
+        template_file="${BUNDLED_TEMPLATES_DIR}/${name}.sh"
+    else
+        err "Template '${name}' not found"
+        err "Searched: ${USER_TEMPLATES_DIR}/${name}.sh"
+        err "Searched: ${BUNDLED_TEMPLATES_DIR}/${name}.sh"
+        exit 1
+    fi
+
+    # Reset optional decorate function
+    decorate() { :; }
+
+    # shellcheck source=/dev/null
+    source "$template_file"
+    log "Loaded template: ${TEMPLATE_NAME:-$name} — ${TEMPLATE_DESC:-no description}"
+}
+
+list_templates() {
+    echo "Available templates:"
+    echo ""
+
+    local found=0
+    for dir in "$BUNDLED_TEMPLATES_DIR" "$USER_TEMPLATES_DIR"; do
+        if [[ -d "$dir" ]]; then
+            for f in "$dir"/*.sh; do
+                [[ -f "$f" ]] || continue
+                found=1
+                local name
+                name="$(basename "$f" .sh)"
+
+                # Source to get description
+                local desc=""
+                desc=$(grep -m1 'TEMPLATE_DESC=' "$f" 2>/dev/null | sed 's/.*TEMPLATE_DESC="\(.*\)"/\1/' || echo "")
+
+                local location="bundled"
+                [[ "$dir" == "$USER_TEMPLATES_DIR" ]] && location="user"
+
+                printf "  %-20s %-10s %s\n" "$name" "[$location]" "$desc"
+            done
+        fi
+    done
+
+    if [[ $found -eq 0 ]]; then
+        echo "  (none found)"
+    fi
+}
+
+is_screenshot() {
+    local file="$1"
+    local ext="${file##*.}"
+    ext="$(echo "$ext" | tr '[:upper:]' '[:lower:]')"
+
+    case "$ext" in
+        png|jpg|jpeg|webp|tiff) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+should_skip() {
+    local file="$1"
+    local base
+    base="$(basename "$file")"
+
+    # Skip already-prettified files
+    if [[ "$base" == *"${OUTPUT_SUFFIX}"* ]]; then
+        return 0
+    fi
+
+    # Skip hidden files
+    if [[ "$base" == .* ]]; then
+        return 0
+    fi
+
+    # Skip tiny files (likely incomplete writes)
+    local size
+    size=$(wc -c < "$file" 2>/dev/null || echo 0)
+    if [[ "$size" -lt 1000 ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+prettify() {
+    local input="$1"
+    local output_dir="${2:-}"
+
+    if [[ ! -f "$input" ]]; then
+        err "File not found: $input"
+        return 1
+    fi
+
+    if should_skip "$input"; then
+        log "Skipping: $(basename "$input")"
+        return 0
+    fi
+
+    local dir base ext output
+    dir="$(dirname "$input")"
+    base="$(basename "$input")"
+    ext="${base##*.}"
+    base="${base%.*}"
+
+    if [[ -n "$output_dir" ]]; then
+        output="${output_dir}/${base}${OUTPUT_SUFFIX}.${ext}"
+    else
+        output="${dir}/${base}${OUTPUT_SUFFIX}.${ext}"
+    fi
+
+    # Skip if output already exists and is newer
+    if [[ -f "$output" && "$output" -nt "$input" ]]; then
+        log "Already pretty: $(basename "$output")"
+        return 0
+    fi
+
+    log "Prettifying: $(basename "$input") → $(basename "$output")"
+
+    local tmp_dir
+    tmp_dir="$(mktemp -d)"
+    trap "rm -rf '$tmp_dir'" RETURN
+
+    local tmp_rounded="${tmp_dir}/rounded.png"
+    local tmp_shadow="${tmp_dir}/shadow.png"
+    local tmp_bg="${tmp_dir}/bg.png"
+    local tmp_composed="${tmp_dir}/composed.png"
+
+    # Get input dimensions
+    local img_w img_h dimensions
+    dimensions="$(magick identify -format '%w %h' "$input" 2>/dev/null)"
+    img_w="${dimensions%% *}"
+    img_h="${dimensions##* }"
+
+    if [[ -z "$img_w" || -z "$img_h" ]]; then
+        err "Could not read image dimensions: $input"
+        return 1
+    fi
+
+    # Calculate output dimensions
+    local total_w=$((img_w + PADDING * 2))
+    local total_h=$((img_h + PADDING * 2))
+
+    # Step 1: Round corners on the screenshot
+    if [[ "$CORNER_RADIUS" -gt 0 ]]; then
+        magick "$input" \
+            \( +clone -alpha extract \
+                -draw "fill black polygon 0,0 0,${CORNER_RADIUS} ${CORNER_RADIUS},0 fill white circle ${CORNER_RADIUS},${CORNER_RADIUS} ${CORNER_RADIUS},0" \
+                -draw "fill black polygon $((img_w - 1)),0 $((img_w - CORNER_RADIUS - 1)),0 $((img_w - 1)),${CORNER_RADIUS} fill white circle $((img_w - CORNER_RADIUS - 1)),${CORNER_RADIUS} $((img_w - 1)),${CORNER_RADIUS}" \
+                -draw "fill black polygon 0,$((img_h - 1)) 0,$((img_h - CORNER_RADIUS - 1)) ${CORNER_RADIUS},$((img_h - 1)) fill white circle ${CORNER_RADIUS},$((img_h - CORNER_RADIUS - 1)) ${CORNER_RADIUS},$((img_h - 1))" \
+                -draw "fill black polygon $((img_w - 1)),$((img_h - 1)) $((img_w - CORNER_RADIUS - 1)),$((img_h - 1)) $((img_w - 1)),$((img_h - CORNER_RADIUS - 1)) fill white circle $((img_w - CORNER_RADIUS - 1)),$((img_h - CORNER_RADIUS - 1)) $((img_w - 1)),$((img_h - CORNER_RADIUS - 1))" \
+            \) -alpha off -compose CopyOpacity -composite \
+            -strip \
+            PNG32:"$tmp_rounded"
+    else
+        magick "$input" -strip PNG32:"$tmp_rounded"
+    fi
+
+    # Step 2: Create background
+    if [[ "$BG_TYPE" == "gradient" ]]; then
+        magick -size "${total_w}x${total_h}" \
+            gradient:"${BG_GRADIENT_TOP}-${BG_GRADIENT_BOT}" \
+            -strip \
+            PNG32:"$tmp_bg"
+    else
+        # MUST use srgb() not hex — ImageMagick on macOS converts hex to grayscale
+        magick -size "${total_w}x${total_h}" \
+            "xc:${BG_COLOR}" \
+            -strip \
+            PNG32:"$tmp_bg"
+    fi
+
+    # Step 3: Create shadow
+    magick "$tmp_rounded" \
+        -background "none" \
+        -shadow "${SHADOW_BLUR}x${SHADOW_BLUR}+0+${SHADOW_OFFSET}" \
+        -strip \
+        PNG32:"$tmp_shadow"
+
+    # Step 4: Composite — bg + shadow + rounded screenshot
+    magick "$tmp_bg" \
+        "$tmp_shadow" -gravity center -compose over -composite \
+        "$tmp_rounded" -gravity center -compose over -composite \
+        -strip \
+        PNG32:"$tmp_composed"
+
+    # Step 5: Run template decoration if defined
+    if declare -f decorate &>/dev/null; then
+        decorate "$tmp_composed" "$output"
+        if [[ -f "$output" ]]; then
+            log "Done: $(basename "$output")"
+            return 0
+        fi
+    fi
+
+    # Final output
+    cp "$tmp_composed" "$output"
+    log "Done: $(basename "$output")"
+}
+
+watch_folder() {
+    local dir="$1"
+
+    if [[ ! -d "$dir" ]]; then
+        err "Watch directory does not exist: $dir"
+        exit 1
+    fi
+
+    if ! command -v fswatch &>/dev/null; then
+        err "fswatch is required for watch mode"
+        err "Install: brew install fswatch"
+        exit 1
+    fi
+
+    log "Watching: $dir"
+    log "Template: ${TEMPLATE}"
+    log "Press Ctrl+C to stop"
+    echo ""
+
+    # Watch for Created, Renamed, MovedTo events (macOS screenshots use temp+rename)
+    fswatch -0 \
+        --event Created \
+        --event Renamed \
+        --event MovedTo \
+        --event Updated \
+        -r "$dir" \
+    | while IFS= read -r -d '' file; do
+        # Only process image files
+        if is_screenshot "$file" && ! should_skip "$file"; then
+            # Small delay — let the OS finish writing
+            sleep 0.5
+            prettify "$file" "${OUTPUT_DIR:-}" || true
+        fi
+    done
+}
+
+# ─── Argument Parsing ────────────────────────────────────────
+
+OUTPUT_DIR=""
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --template|-t)
+            TEMPLATE="$2"
+            shift 2
+            ;;
+        --watch-dir|-w)
+            WATCH_DIR="$2"
+            shift 2
+            ;;
+        --output-dir|-o)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        --suffix|-s)
+            OUTPUT_SUFFIX="$2"
+            shift 2
+            ;;
+        --list-templates)
+            list_templates
+            exit 0
+            ;;
+        --version|-v)
+            echo "snap-pretty ${VERSION}"
+            exit 0
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        -*)
+            err "Unknown option: $1"
+            usage
+            exit 1
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# ─── Check dependencies ─────────────────────────────────────
+
+if ! command -v magick &>/dev/null; then
+    err "ImageMagick is required but not installed"
+    err "Install: brew install imagemagick"
+    exit 1
+fi
+
+# ─── Load template ───────────────────────────────────────────
+
+load_template "$TEMPLATE"
+
+# ─── Execute ─────────────────────────────────────────────────
+
+if [[ ${#POSITIONAL_ARGS[@]} -gt 0 ]]; then
+    # One-shot mode: process each file
+    for file in "${POSITIONAL_ARGS[@]}"; do
+        prettify "$file" "${OUTPUT_DIR:-}"
+    done
+else
+    # Watch mode
+    watch_folder "$WATCH_DIR"
+fi

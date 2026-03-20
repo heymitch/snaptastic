@@ -1,0 +1,9 @@
+.DS_Store
+*.swp
+*.swo
+*~
+.env
+tmp/
+*.tmp
+*-pretty.png
+*-pretty.jpg
