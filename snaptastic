@@ -257,7 +257,9 @@ prettify() {
     fi
 
     # Step 2: Create background
-    if [[ "$BG_TYPE" == "gradient" ]]; then
+    if declare -f custom_background &>/dev/null; then
+        custom_background "$tmp_bg" "$total_w" "$total_h"
+    elif [[ "$BG_TYPE" == "gradient" ]]; then
         magick -size "${total_w}x${total_h}" \
             gradient:"${BG_GRADIENT_TOP}-${BG_GRADIENT_BOT}" \
             -strip \

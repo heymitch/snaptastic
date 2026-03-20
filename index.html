@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snaptastic - CLI Screenshot Beautifier</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #E8F0F8;
+    --brown-text: #2D2118;
+    --brown-heading: #1E150E;
+    --orange: #E8682A;
+    --orange-hover: #D45A1E;
+    --teal: #4A9DB8;
+    --green: #82C896;
+    --terminal-bg: #12100E;
+    --border-brown: #4A3A2A;
+    --bar-green: #5B8C5A;
+    --bar-blue: #4A9DB8;
+    --bar-orange: #E8682A;
+    --bar-dark: #2D2118;
+    --bar-gray: #4A3A2A;
+    --card-bg: #E8DCCA;
+    --card-shadow: rgba(45, 33, 24, 0.12);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+    background: linear-gradient(165deg, #C8D8EA 0%, #B8CCE0 30%, #D0DCE8 60%, #C4D4E4 100%);
+    background-attachment: fixed;
+    color: var(--brown-text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Color Bar Strip */
+  .color-bar {
+    display: flex;
+    height: 4px;
+    width: 100%;
+  }
+  .color-bar span { flex: 1; }
+  .color-bar .cb-green { background: var(--bar-green); }
+  .color-bar .cb-blue { background: var(--bar-blue); }
+  .color-bar .cb-orange { background: var(--bar-orange); }
+  .color-bar .cb-dark { background: var(--bar-dark); }
+  .color-bar .cb-gray { background: var(--bar-gray); }
+
+  /* Layout */
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 40px;
+  }
+
+  section {
+    padding: 72px 0;
+  }
+
+  /* Hero */
+  .hero {
+    text-align: center;
+    padding: 80px 0 64px;
+  }
+  .hero-title {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 700;
+    color: var(--brown-heading);
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .hero-tagline {
+    font-size: clamp(1.1rem, 2.5vw, 1.35rem);
+    color: var(--brown-text);
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+  .hero-desc {
+    font-size: 1rem;
+    color: #5A4A3A;
+    max-width: 560px;
+    margin: 0 auto 32px;
+    line-height: 1.7;
+  }
+  .btn-primary {
+    display: inline-block;
+    background: var(--orange);
+    color: #fff;
+    padding: 14px 36px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(232, 104, 42, 0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+  }
+  .btn-primary:hover {
+    background: var(--orange-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(232, 104, 42, 0.4), inset 0 1px 0 rgba(255,255,255,0.15);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border-brown);
+    opacity: 0.2;
+    margin: 0;
+  }
+
+  /* Section headings */
+  .section-label {
+    font-family: monospace;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+  .section-title {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: clamp(1.6rem, 4vw, 2.2rem);
+    font-weight: 700;
+    color: var(--brown-heading);
+    margin-bottom: 16px;
+  }
+  .section-subtitle {
+    font-size: 1.05rem;
+    color: #5A4A3A;
+    max-width: 560px;
+    line-height: 1.7;
+  }
+
+  /* Terminal Code Block */
+  .terminal {
+    background: var(--terminal-bg);
+    border: 1px solid var(--border-brown);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(18, 16, 14, 0.25), inset 0 1px 0 rgba(255,255,255,0.03);
+    margin: 24px 0;
+  }
+  .terminal-bar {
+    background: #1E1B18;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    border-bottom: 1px solid #2A2520;
+  }
+  .terminal-dot {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+  }
+  .terminal-dot.red { background: #E85D4A; }
+  .terminal-dot.yellow { background: #E8B84A; }
+  .terminal-dot.green { background: #5B8C5A; }
+  .terminal-bar-title {
+    flex: 1;
+    text-align: center;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #6A5A4A;
+    margin-right: 50px;
+  }
+  .terminal-body {
+    padding: 20px;
+    position: relative;
+    overflow-x: auto;
+  }
+  .terminal-body code {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Menlo, Monaco, 'Courier New', monospace;
+    font-size: 0.88rem;
+    color: var(--green);
+    line-height: 1.7;
+    display: block;
+    white-space: pre;
+  }
+  .terminal-body .prompt { color: var(--teal); }
+  .terminal-body .comment { color: #6A5A4A; }
+
+  /* Copy button */
+  .copy-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #8A7A6A;
+    padding: 5px 12px;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    font-family: monospace;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+  }
+  .copy-btn:hover { background: rgba(255,255,255,0.1); color: var(--green); }
+  .copy-btn.copied { color: var(--green); }
+
+  /* Before/After Demo */
+  .demo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 40px;
+    align-items: center;
+  }
+  @media (max-width: 600px) {
+    .demo-grid { grid-template-columns: 1fr; gap: 24px; }
+  }
+  .demo-card {
+    text-align: center;
+  }
+  .demo-label {
+    font-family: monospace;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #8A7A6A;
+    margin-bottom: 12px;
+  }
+  .demo-before {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 0;
+    width: 100%;
+    aspect-ratio: 16/10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .demo-before-inner {
+    width: 80%;
+    height: 60%;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+  .demo-code-line {
+    height: 6px;
+    border-radius: 2px;
+    background: #238636;
+    opacity: 0.6;
+  }
+  .demo-code-line:nth-child(2) { width: 70%; background: var(--teal); opacity: 0.5; }
+  .demo-code-line:nth-child(3) { width: 85%; background: #8b949e; opacity: 0.3; }
+  .demo-code-line:nth-child(4) { width: 55%; background: var(--orange); opacity: 0.4; }
+  .demo-code-line:nth-child(5) { width: 75%; background: #238636; opacity: 0.5; }
+
+  .demo-after {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 14px;
+    padding: 28px;
+    width: 100%;
+    aspect-ratio: 16/10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.25);
+  }
+  .demo-after-inner {
+    width: 82%;
+    height: 72%;
+    background: #0d1117;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+    display: flex;
+    flex-direction: column;
+    padding: 10px 14px;
+    gap: 5px;
+  }
+  .demo-after-inner .demo-code-line { opacity: 0.8; }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 48px;
+    margin-top: 40px;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .step-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: var(--orange);
+    color: #fff;
+    font-family: 'Georgia', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(232, 104, 42, 0.25);
+    flex-shrink: 0;
+  }
+  .step-title {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--brown-heading);
+    margin-bottom: 4px;
+  }
+  .step-desc {
+    font-size: 0.95rem;
+    color: #5A4A3A;
+    line-height: 1.6;
+  }
+
+  /* Template Carousel — center-focus with peeking neighbors */
+  .carousel-wrapper {
+    position: relative;
+    margin-top: 40px;
+    overflow: hidden;
+  }
+  .carousel-track {
+    display: flex;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+    align-items: center;
+  }
+  .template-card {
+    flex: 0 0 70%;
+    max-width: 720px;
+    margin: 0 16px;
+    background: rgba(255,255,255,0.65);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(74, 58, 42, 0.1);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    transition: transform 0.4s, opacity 0.4s, box-shadow 0.4s;
+    opacity: 0.4;
+    transform: scale(0.88);
+  }
+  .template-card.active {
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  }
+  .template-preview {
+    width: 100%;
+    border-radius: 10px;
+    margin-bottom: 16px;
+  }
+  .carousel-arrows {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+  }
+  .carousel-arrow {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.7);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(74, 58, 42, 0.12);
+    color: var(--brown-heading);
+    font-size: 1.3rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, transform 0.1s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .carousel-arrow:hover {
+    background: rgba(255,255,255,0.9);
+    transform: scale(1.05);
+  }
+  .carousel-arrow:active { transform: scale(0.95); }
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  .carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(74, 58, 42, 0.2);
+    transition: background 0.3s, transform 0.3s;
+    cursor: pointer;
+  }
+  .carousel-dot.active {
+    background: var(--orange);
+    transform: scale(1.3);
+  }
+
+  .template-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--brown-heading);
+    margin-bottom: 4px;
+  }
+  .template-desc {
+    font-size: 0.82rem;
+    color: #7A6A5A;
+    line-height: 1.5;
+  }
+
+  /* Agentic Section */
+  .agentic {
+    background: #E6D9C5;
+    border-radius: 16px;
+    padding: 48px 40px;
+    border: 1px solid rgba(74, 58, 42, 0.1);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+  }
+  @media (max-width: 600px) {
+    .agentic { padding: 32px 20px; }
+  }
+  .agentic .section-title { margin-bottom: 12px; }
+  .agentic-tagline {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--orange);
+    margin-top: 20px;
+    font-weight: 500;
+  }
+
+  /* Install CTA */
+  .install-cta {
+    text-align: center;
+    padding-bottom: 48px;
+  }
+  .badges {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 28px 0;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card-bg);
+    border: 1px solid rgba(74, 58, 42, 0.15);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--brown-heading);
+  }
+  .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+  .install-footer {
+    font-size: 0.9rem;
+    color: #7A6A5A;
+    margin-top: 12px;
+  }
+  .install-footer a {
+    color: var(--teal);
+    text-decoration: none;
+  }
+  .install-footer a:hover { text-decoration: underline; }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 0.8rem;
+    color: #8A7A6A;
+  }
+  footer a { color: var(--teal); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* Before/After Demo */
+  .demo-compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    align-items: start;
+    margin-bottom: 48px;
+  }
+  .demo-compare-item {
+    text-align: center;
+  }
+  .demo-img {
+    width: 100%;
+    display: block;
+    border-radius: 4px;
+  }
+  .demo-img-after {
+    border-radius: 0;
+  }
+  @media (max-width: 768px) {
+    .demo-compare {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+  }
+
+  /* Install Section */
+  .install-block {
+    max-width: 680px;
+    margin: 0 auto;
+    text-align: left;
+  }
+
+  /* More Examples */
+  .examples-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    margin-top: 36px;
+    align-items: start;
+  }
+  @media (max-width: 600px) {
+    .examples-grid { grid-template-columns: 1fr; gap: 24px; }
+  }
+  .example-card {
+    text-align: center;
+  }
+
+  /* Links */
+  a { color: var(--teal); }
+</style>
+</head>
+<body>
+
+<!-- Top Color Bar -->
+<div class="color-bar">
+  <span class="cb-green"></span>
+  <span class="cb-blue"></span>
+  <span class="cb-orange"></span>
+  <span class="cb-dark"></span>
+  <span class="cb-gray"></span>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <h1 class="hero-title">snaptastic</h1>
+    <p class="hero-tagline">Take a screenshot. Get a beautiful version. That's it.</p>
+    <p class="hero-desc">Free, open-source, agent-first screenshot beautifier. No subscription. No Electron app. No $30/year for rounded corners. Just a local bash script that watches your folder and makes every screenshot content-ready.</p>
+
+    <ul style="list-style:none;padding:0;margin:20px auto 28px;max-width:420px;text-align:left;">
+      <li style="padding:6px 0;font-size:0.95rem;color:#3A3028;">&#10003; Presentations &amp; slide decks</li>
+      <li style="padding:6px 0;font-size:0.95rem;color:#3A3028;">&#10003; Course content &amp; tutorials</li>
+      <li style="padding:6px 0;font-size:0.95rem;color:#3A3028;">&#10003; Social media posts&mdash;real screenshots, zero AI flags</li>
+      <li style="padding:6px 0;font-size:0.95rem;color:#3A3028;">&#10003; Newsletters &amp; blog posts</li>
+      <li style="padding:6px 0;font-size:0.95rem;color:#5A4A3A;font-size:0.85rem;font-style:italic;">No Canva. No Figma. No drag-and-drop. Just take a screenshot.</li>
+    </ul>
+    <a href="https://github.com/heymitch/snaptastic" class="btn-primary" target="_blank" rel="noopener">View on GitHub</a>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Before/After — Full Width -->
+<section>
+  <div class="container">
+    <p class="section-label" style="text-align:center;">See the difference</p>
+    <h2 class="section-title" style="text-align:center;">Raw screenshot vs. Snaptastic</h2>
+
+    <div class="demo-compare">
+      <div class="demo-compare-item">
+        <p class="demo-label">Before</p>
+        <img src="images/cowork-raw.png" alt="Raw screenshot" class="demo-img" loading="lazy">
+      </div>
+      <div class="demo-compare-item">
+        <p class="demo-label">After</p>
+        <img src="images/cowork-pretty.png" alt="Beautified screenshot" class="demo-img demo-img-after" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Install Once -->
+<section>
+  <div class="container">
+    <div class="install-block">
+      <p class="section-label">Install once</p>
+      <h2 class="section-title">Paste this into your agent. Let it handle the rest.</h2>
+      <p class="step-desc" style="margin-bottom:16px;">Open Claude Code, Codex, or OpenClaw. Paste. Done.</p>
+
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="terminal-dot red"></span>
+            <span class="terminal-dot yellow"></span>
+            <span class="terminal-dot green"></span>
+            <span class="terminal-bar-title">paste into your agent</span>
+          </div>
+          <div class="terminal-body">
+            <button class="copy-btn" onclick="copyCode(this, installText)">copy</button>
+            <code id="install-block">Install Snaptastic for me.
+
+Snaptastic is a CLI screenshot beautifier
+that watches my screenshot folder and
+auto-beautifies every capture with
+backgrounds, rounded corners, shadows,
+and templates.
+
+Read https://github.com/heymitch/snaptastic
+and install it on my machine. Set up
+auto-start at login so it runs in the
+background.
+
+After install, ask me one question:
+Which template should be the default?
+1. gradient-sunset
+2. synthwave
+3. trd-pro
+4. catppuccin
+5. absolutely
+6. gradient-dark
+7. clean-white
+8. minimal-gray
+
+Then set my choice and confirm it's
+running.</code>
+          </div>
+        </div>
+
+        <div class="badges" style="margin-top:20px;">
+          <span class="badge"><span class="badge-dot"></span> Claude Code</span>
+          <span class="badge"><span class="badge-dot"></span> Codex</span>
+          <span class="badge"><span class="badge-dot"></span> OpenClaw</span>
+        </div>
+
+        <details style="margin-top:20px;">
+          <summary style="cursor:pointer;font-size:0.82rem;color:#8A7A6A;">Manual install</summary>
+          <div class="terminal" style="margin-top:8px;">
+            <div class="terminal-bar">
+              <span class="terminal-dot red"></span>
+              <span class="terminal-dot yellow"></span>
+              <span class="terminal-dot green"></span>
+              <span class="terminal-bar-title">terminal</span>
+            </div>
+            <div class="terminal-body">
+              <button class="copy-btn" onclick="copyCode(this, 'git clone https://github.com/heymitch/snaptastic.git && cd snaptastic && ./install.sh')">copy</button>
+              <code><span class="prompt">$</span> git clone https://github.com/heymitch/snaptastic.git && \
+  cd snaptastic && ./install.sh</code>
+            </div>
+          </div>
+        </details>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Templates -->
+<section>
+  <div class="container">
+    <p class="section-label">Built-in templates</p>
+    <h2 class="section-title">Eight looks. Ships out of the box.</h2>
+    <p class="section-subtitle">Switch between templates or set a default. Each one applies a different background, shadow style, and corner radius.</p>
+
+    <div class="carousel-wrapper" id="templateCarousel">
+      <div class="carousel-track" id="carouselTrack">
+        <div class="template-card" data-index="0">
+          <img src="images/preview-gradient-sunset.png" alt="Gradient Sunset" class="template-preview" loading="lazy">
+          <p class="template-name">Gradient Sunset</p>
+          <p class="template-desc">Warm peach-to-gold. Stands out on social.</p>
+        </div>
+        <div class="template-card" data-index="1">
+          <img src="images/preview-synthwave.png" alt="Synthwave" class="template-preview" loading="lazy">
+          <p class="template-name">Synthwave</p>
+          <p class="template-desc">Retrowave gradient with neon grid horizon.</p>
+        </div>
+        <div class="template-card" data-index="2">
+          <img src="images/preview-trd-pro.png" alt="TRD Pro" class="template-preview" loading="lazy">
+          <p class="template-name">TRD Pro</p>
+          <p class="template-desc">Hockey stick racing stripes on matte dark.</p>
+        </div>
+        <div class="template-card" data-index="3">
+          <img src="images/preview-catppuccin.png" alt="Catppuccin" class="template-preview" loading="lazy">
+          <p class="template-name">Catppuccin</p>
+          <p class="template-desc">Mocha palette with diagonal pastel accents.</p>
+        </div>
+        <div class="template-card" data-index="4">
+          <img src="images/preview-absolutely.png" alt="Absolutely" class="template-preview" loading="lazy">
+          <p class="template-name">Absolutely</p>
+          <p class="template-desc">Warm sand and terracotta. I have the whole picture now.</p>
+        </div>
+        <div class="template-card" data-index="5">
+          <img src="images/preview-gradient-dark.png" alt="Gradient Dark" class="template-preview" loading="lazy">
+          <p class="template-name">Gradient Dark</p>
+          <p class="template-desc">Deep navy gradient. Great for code screenshots.</p>
+        </div>
+        <div class="template-card" data-index="6">
+          <img src="images/preview-clean-white.png" alt="Clean White" class="template-preview" loading="lazy">
+          <p class="template-name">Clean White</p>
+          <p class="template-desc">White background, soft shadow. The classic.</p>
+        </div>
+        <div class="template-card" data-index="7">
+          <img src="images/preview-minimal-gray.png" alt="Minimal Gray" class="template-preview" loading="lazy">
+          <p class="template-name">Minimal Gray</p>
+          <p class="template-desc">Blocky geometrics on neutral gray. Quiet.</p>
+        </div>
+      </div>
+      <div class="carousel-arrows">
+        <button class="carousel-arrow" onclick="carouselPrev()">&#8592;</button>
+        <button class="carousel-arrow" onclick="carouselNext()">&#8594;</button>
+      </div>
+      <div class="carousel-dots" id="carouselDots"></div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- More Examples -->
+<section>
+  <div class="container">
+    <p class="section-label">More examples</p>
+    <h2 class="section-title">Dashboard, before and after.</h2>
+
+    <div class="examples-grid">
+      <div class="example-card">
+        <p class="demo-label">Raw</p>
+        <img src="images/dashboard-raw.png" alt="Raw dashboard screenshot" style="width:100%;border-radius:8px;" loading="lazy">
+      </div>
+      <div class="example-card">
+        <p class="demo-label">Snaptastic</p>
+        <img src="images/dashboard-pretty.png" alt="Beautified dashboard screenshot" style="width:100%;border-radius:8px;" loading="lazy">
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Agentic Hook -->
+<section>
+  <div class="container">
+    <div class="agentic">
+      <p class="section-label">Go further</p>
+      <h2 class="section-title">Design your own template with AI</h2>
+      <p class="section-subtitle">Already installed? Tell your agent to build you a custom look:</p>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="terminal-dot red"></span>
+          <span class="terminal-dot yellow"></span>
+          <span class="terminal-dot green"></span>
+          <span class="terminal-bar-title">your agent</span>
+        </div>
+        <div class="terminal-body">
+          <button class="copy-btn" onclick="copyCode(this, 'Create a custom Snaptastic template for me. I want [describe your style].\nRead the template docs at ~/.snaptastic/templates/ and create a new one.')">copy</button>
+          <code>Create a custom Snaptastic template for me.
+I want [describe your style].
+Read the template docs at ~/.snaptastic/templates/
+and create a new one.</code>
+        </div>
+      </div>
+
+      <p class="step-desc" style="margin-top:20px;">Your agent reads the template format, designs the background, colors, and decorations, and saves it. Next screenshot uses your custom look.</p>
+
+      <p class="agentic-tagline">You describe. The agent builds. You benefit.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- Footer CTA -->
+<section class="install-cta" style="padding-bottom:48px;">
+  <div class="container">
+    <p class="install-footer">Free forever. MIT license. <a href="https://github.com/heymitch/snaptastic" target="_blank" rel="noopener">Star it on GitHub.</a></p>
+  </div>
+</section>
+
+<!-- Bottom Color Bar -->
+<div class="color-bar">
+  <span class="cb-green"></span>
+  <span class="cb-blue"></span>
+  <span class="cb-orange"></span>
+  <span class="cb-dark"></span>
+  <span class="cb-gray"></span>
+</div>
+
+<footer>
+  <p>Built by <a href="https://heymitch.ai" target="_blank" rel="noopener">heymitch.ai</a></p>
+</footer>
+
+<script>
+var installText = "Install Snaptastic for me.\n\nSnaptastic is a CLI screenshot beautifier that watches my screenshot folder and auto-beautifies every capture with backgrounds, rounded corners, shadows, and templates.\n\nRead https://github.com/heymitch/snaptastic and install it on my machine. Set up auto-start at login so it runs in the background.\n\nAfter install, ask me one question:\nWhich template should be the default?\n1. gradient-sunset\n2. synthwave\n3. trd-pro\n4. catppuccin\n5. absolutely\n6. gradient-dark\n7. clean-white\n8. minimal-gray\n\nThen set my choice and confirm it's running.";
+
+function copyCode(btn, text) {
+  navigator.clipboard.writeText(text).then(function() {
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(function() {
+    // Fallback for older browsers
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = 'copied!';
+    btn.classList.add('copied');
+    setTimeout(function() {
+      btn.textContent = 'copy';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+// ─── Template Carousel ───
+var currentSlide = 0;
+var totalSlides = 8;
+
+function updateCarousel() {
+  var track = document.getElementById('carouselTrack');
+  var cards = track.querySelectorAll('.template-card');
+  var wrapper = document.getElementById('templateCarousel');
+  var wrapperWidth = wrapper.offsetWidth;
+  var cardWidth = cards[0].offsetWidth + 32;
+  var offset = (wrapperWidth / 2) - (cardWidth / 2) - (currentSlide * cardWidth);
+  track.style.transform = 'translateX(' + offset + 'px)';
+
+  cards.forEach(function(card, i) {
+    card.classList.toggle('active', i === currentSlide);
+  });
+
+  var dots = document.querySelectorAll('.carousel-dot');
+  dots.forEach(function(dot, i) {
+    dot.classList.toggle('active', i === currentSlide);
+  });
+}
+
+function carouselNext() {
+  currentSlide = (currentSlide + 1) % totalSlides;
+  updateCarousel();
+}
+
+function carouselPrev() {
+  currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+  updateCarousel();
+}
+
+(function() {
+  var dotsContainer = document.getElementById('carouselDots');
+  if (!dotsContainer) return;
+  for (var i = 0; i < totalSlides; i++) {
+    var dot = document.createElement('span');
+    dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('data-index', i);
+    dot.onclick = function() {
+      currentSlide = parseInt(this.getAttribute('data-index'));
+      updateCarousel();
+    };
+    dotsContainer.appendChild(dot);
+  }
+  window.addEventListener('load', updateCarousel);
+  window.addEventListener('resize', updateCarousel);
+})();
+</script>
+
+</body>
+</html>
