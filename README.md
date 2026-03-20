@@ -1,36 +1,36 @@
-# snap-pretty
+# snaptastic
 
 Take a screenshot. Get a beautiful version. That's it.
 
-`snap-pretty` watches a folder for new screenshots and instantly generates beautified versions with backgrounds, rounded corners, and shadows. Or use it one-shot on any image.
+`snaptastic` watches a folder for new screenshots and instantly generates beautified versions with backgrounds, rounded corners, and shadows. Or use it one-shot on any image.
 
 ## Install
 
 ```bash
-git clone https://github.com/heymitch/snap-pretty.git
-cd snap-pretty
+git clone https://github.com/heymitch/snaptastic.git
+cd snaptastic
 ./install.sh
 ```
 
-The installer checks for `imagemagick` and `fswatch` (installs via Homebrew if missing), copies the script to `/usr/local/bin/`, sets up templates at `~/.snap-pretty/`, and optionally installs a LaunchAgent for auto-start.
+The installer checks for `imagemagick` and `fswatch` (installs via Homebrew if missing), copies the script to `/usr/local/bin/`, sets up templates at `~/.snaptastic/`, and optionally installs a LaunchAgent for auto-start.
 
 ## Usage
 
 ```bash
 # Beautify a single file
-snap-pretty screenshot.png
+snaptastic screenshot.png
 
 # Watch ~/Desktop for new screenshots (runs forever)
-snap-pretty
+snaptastic
 
 # Use a specific template
-snap-pretty --template gradient-dark screenshot.png
+snaptastic --template gradient-dark screenshot.png
 
 # Watch a different folder
-snap-pretty --watch-dir ~/Screenshots
+snaptastic --watch-dir ~/Screenshots
 
 # List available templates
-snap-pretty --list-templates
+snaptastic --list-templates
 ```
 
 Output lands next to the original with a `-pretty` suffix: `screenshot.png` becomes `screenshot-pretty.png`.
@@ -48,11 +48,11 @@ Four built-in templates ship out of the box:
 
 ### Create Your Own
 
-Templates are bash files that export variables. Drop them in `~/.snap-pretty/templates/`.
+Templates are bash files that export variables. Drop them in `~/.snaptastic/templates/`.
 
 ```bash
 #!/usr/bin/env bash
-# ~/.snap-pretty/templates/my-brand.sh
+# ~/.snaptastic/templates/my-brand.sh
 
 TEMPLATE_NAME="my-brand"
 TEMPLATE_DESC="My brand colors"
@@ -90,7 +90,7 @@ decorate() {
 
 ## Config
 
-Edit `~/.snap-pretty/config` to change defaults:
+Edit `~/.snaptastic/config` to change defaults:
 
 ```bash
 # Watch directory
@@ -118,16 +118,16 @@ cat > ~/Library/LaunchAgents/com.snappretty.watcher.plist <<EOF
     <string>com.snappretty.watcher</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/snap-pretty</string>
+        <string>/usr/local/bin/snaptastic</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>~/.snap-pretty/snap-pretty.log</string>
+    <string>~/.snaptastic/snaptastic.log</string>
     <key>StandardErrorPath</key>
-    <string>~/.snap-pretty/snap-pretty.log</string>
+    <string>~/.snaptastic/snaptastic.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -147,7 +147,7 @@ To stop: `launchctl unload ~/Library/LaunchAgents/com.snappretty.watcher.plist`
 
 Using Claude Code, Codex, or similar? Tell your agent:
 
-> Install snap-pretty from ~/repos/snap-pretty. Run ./install.sh, accept defaults, skip the LaunchAgent. Then beautify this screenshot for me.
+> Install snaptastic from ~/repos/snaptastic. Run ./install.sh, accept defaults, skip the LaunchAgent. Then beautify this screenshot for me.
 
 ## Dependencies
 

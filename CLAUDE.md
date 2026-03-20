@@ -1,4 +1,4 @@
-# snap-pretty
+# snaptastic
 
 CLI screenshot beautifier. Watches a folder, beautifies screenshots with templates.
 
@@ -9,20 +9,20 @@ Takes screenshots (png/jpg/webp/tiff), applies a template (background + rounded 
 ## Installing for the User
 
 ```bash
-cd /Users/heymitch/repos/snap-pretty
+cd /Users/heymitch/repos/snaptastic
 ./install.sh
 ```
 
 The installer:
 1. Checks/installs `imagemagick` and `fswatch` via Homebrew
-2. Copies `snap-pretty` to `/usr/local/bin/`
-3. Creates `~/.snap-pretty/templates/` with bundled templates
-4. Creates `~/.snap-pretty/config` with defaults
+2. Copies `snaptastic` to `/usr/local/bin/`
+3. Creates `~/.snaptastic/templates/` with bundled templates
+4. Creates `~/.snaptastic/config` with defaults
 5. Optionally installs a LaunchAgent for auto-start (answer y/n when prompted)
 
 ## Creating a Custom Template
 
-Create a file at `~/.snap-pretty/templates/<name>.sh`:
+Create a file at `~/.snaptastic/templates/<name>.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -64,4 +64,4 @@ launchctl unload ~/Library/LaunchAgents/com.snappretty.watcher.plist
 - Watch mode catches Created + Renamed + MovedTo events (macOS screenshots use temp+rename)
 - Files with `-pretty` in the name are skipped to prevent infinite loops
 - Font paths are resolved at runtime via `fc-match` with macOS fallbacks
-- Config at `~/.snap-pretty/config`, templates at `~/.snap-pretty/templates/`
+- Config at `~/.snaptastic/config`, templates at `~/.snaptastic/templates/`

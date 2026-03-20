@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# snap-pretty — CLI screenshot beautifier
+# snaptastic — CLI screenshot beautifier
 # Takes screenshots, makes them pretty. That's it.
 
 VERSION="1.0.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="${HOME}/.snap-pretty"
+CONFIG_DIR="${HOME}/.snaptastic"
 CONFIG_FILE="${CONFIG_DIR}/config"
 USER_TEMPLATES_DIR="${CONFIG_DIR}/templates"
 BUNDLED_TEMPLATES_DIR="${SCRIPT_DIR}/templates"
@@ -40,15 +40,15 @@ SHADOW_COLOR="rgba(0,0,0,0.15)"
 
 usage() {
     cat <<'USAGE'
-snap-pretty — screenshot beautifier
+snaptastic — screenshot beautifier
 
 Usage:
-  snap-pretty <file.png>                     One-shot: beautify a single file
-  snap-pretty                                Watch mode: auto-beautify new screenshots
-  snap-pretty --template gradient-dark <f>   Use a specific template
-  snap-pretty --list-templates               Show available templates
-  snap-pretty --version                      Print version
-  snap-pretty --help                         This message
+  snaptastic <file.png>                     One-shot: beautify a single file
+  snaptastic                                Watch mode: auto-beautify new screenshots
+  snaptastic --template gradient-dark <f>   Use a specific template
+  snaptastic --list-templates               Show available templates
+  snaptastic --version                      Print version
+  snaptastic --help                         This message
 
 Options:
   --template <name>    Template to apply (default: clean-white)
@@ -58,17 +58,17 @@ Options:
   --list-templates     List all available templates
   --version            Print version
 
-Config: ~/.snap-pretty/config
-Templates: ~/.snap-pretty/templates/ (user) or bundled in repo
+Config: ~/.snaptastic/config
+Templates: ~/.snaptastic/templates/ (user) or bundled in repo
 USAGE
 }
 
 log() {
-    echo "[snap-pretty] $*"
+    echo "[snaptastic] $*"
 }
 
 err() {
-    echo "[snap-pretty] ERROR: $*" >&2
+    echo "[snaptastic] ERROR: $*" >&2
 }
 
 resolve_font() {
@@ -362,7 +362,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --version|-v)
-            echo "snap-pretty ${VERSION}"
+            echo "snaptastic ${VERSION}"
             exit 0
             ;;
         --help|-h)

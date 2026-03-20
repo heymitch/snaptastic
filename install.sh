@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# snap-pretty installer
+# snaptastic installer
 # One command: curl -fsSL <url> | bash
-# Or: git clone ... && cd snap-pretty && ./install.sh
+# Or: git clone ... && cd snaptastic && ./install.sh
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALL_DIR="/usr/local/bin"
-CONFIG_DIR="${HOME}/.snap-pretty"
+CONFIG_DIR="${HOME}/.snaptastic"
 TEMPLATES_DIR="${CONFIG_DIR}/templates"
 LAUNCH_AGENT_DIR="${HOME}/Library/LaunchAgents"
 LAUNCH_AGENT_PLIST="com.snappretty.watcher.plist"
 
-log() { echo "[snap-pretty] $*"; }
-err() { echo "[snap-pretty] ERROR: $*" >&2; }
+log() { echo "[snaptastic] $*"; }
+err() { echo "[snaptastic] ERROR: $*" >&2; }
 
 # ─── Check OS ────────────────────────────────────────────────
 
 OS="$(uname -s)"
 if [[ "$OS" != "Darwin" ]]; then
-    log "Note: snap-pretty is built for macOS. It may work on Linux with imagemagick + inotifywait."
+    log "Note: snaptastic is built for macOS. It may work on Linux with imagemagick + inotifywait."
     log "Continuing anyway..."
 fi
 
@@ -57,14 +57,14 @@ fi
 
 # ─── Install script ──────────────────────────────────────────
 
-log "Installing snap-pretty to ${INSTALL_DIR}..."
+log "Installing snaptastic to ${INSTALL_DIR}..."
 
 if [[ ! -d "$INSTALL_DIR" ]]; then
     sudo mkdir -p "$INSTALL_DIR"
 fi
 
-sudo cp "${SCRIPT_DIR}/snap-pretty" "${INSTALL_DIR}/snap-pretty"
-sudo chmod +x "${INSTALL_DIR}/snap-pretty"
+sudo cp "${SCRIPT_DIR}/snaptastic" "${INSTALL_DIR}/snaptastic"
+sudo chmod +x "${INSTALL_DIR}/snaptastic"
 
 # ─── Setup config directory ──────────────────────────────────
 
@@ -89,7 +89,7 @@ fi
 # Create default config if missing
 if [[ ! -f "${CONFIG_DIR}/config" ]]; then
     cat > "${CONFIG_DIR}/config" <<'EOF'
-# snap-pretty configuration
+# snaptastic configuration
 # Uncomment and edit as needed
 
 # Watch directory (default: ~/Desktop)
@@ -107,7 +107,7 @@ fi
 # ─── Optional: LaunchAgent ────────────────────────────────────
 
 echo ""
-read -rp "[snap-pretty] Install LaunchAgent for auto-start at login? (y/N) " response
+read -rp "[snaptastic] Install LaunchAgent for auto-start at login? (y/N) " response
 if [[ "$response" =~ ^[Yy]$ ]]; then
     mkdir -p "$LAUNCH_AGENT_DIR"
 
@@ -120,16 +120,16 @@ if [[ "$response" =~ ^[Yy]$ ]]; then
     <string>com.snappretty.watcher</string>
     <key>ProgramArguments</key>
     <array>
-        <string>${INSTALL_DIR}/snap-pretty</string>
+        <string>${INSTALL_DIR}/snaptastic</string>
     </array>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>${HOME}/.snap-pretty/snap-pretty.log</string>
+    <string>${HOME}/.snaptastic/snaptastic.log</string>
     <key>StandardErrorPath</key>
-    <string>${HOME}/.snap-pretty/snap-pretty.log</string>
+    <string>${HOME}/.snaptastic/snaptastic.log</string>
     <key>EnvironmentVariables</key>
     <dict>
         <key>PATH</key>
@@ -142,17 +142,17 @@ EOF
     log "LaunchAgent installed at ${LAUNCH_AGENT_DIR}/${LAUNCH_AGENT_PLIST}"
     log "Loading now..."
     launchctl load "${LAUNCH_AGENT_DIR}/${LAUNCH_AGENT_PLIST}" 2>/dev/null || true
-    log "snap-pretty will auto-start at login and is running now"
+    log "snaptastic will auto-start at login and is running now"
 else
     log "Skipped LaunchAgent install"
-    log "Run 'snap-pretty' manually to start watch mode"
+    log "Run 'snaptastic' manually to start watch mode"
 fi
 
 echo ""
 log "Installation complete!"
 log ""
 log "Usage:"
-log "  snap-pretty screenshot.png          # Beautify one file"
-log "  snap-pretty                          # Watch ~/Desktop for new screenshots"
-log "  snap-pretty --template gradient-dark # Use a different template"
-log "  snap-pretty --list-templates         # See available templates"
+log "  snaptastic screenshot.png          # Beautify one file"
+log "  snaptastic                          # Watch ~/Desktop for new screenshots"
+log "  snaptastic --template gradient-dark # Use a different template"
+log "  snaptastic --list-templates         # See available templates"
